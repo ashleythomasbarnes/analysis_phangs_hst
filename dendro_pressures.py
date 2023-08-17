@@ -16,3 +16,8 @@ def get_pwind(mdot, windvelo, radius):
     pwind = (mdot * windvelo) / ((4./3.)*np.pi * (radius.to('cm')**2))
     pwind = (pwind/ac.k_B.cgs)
     return(pwind.to('K/cm^3'))
+
+def save_fits(props_all_final, props_all_file):
+    filename = props_all_file.replace('02','03')
+    print('[INFO] [save_fits] Saved to %s' %filename)
+    props_all_final.write(filename, overwrite=True)
