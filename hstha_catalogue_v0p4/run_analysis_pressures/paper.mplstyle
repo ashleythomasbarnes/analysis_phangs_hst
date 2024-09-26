@@ -364,7 +364,7 @@ font.weight:  bold
 #axes.facecolor:     white   # axes background color
 #axes.edgecolor:     black   # axes edge color
 #axes.linewidth:     0.8     # edge line width
-#axes.grid:          False   # display grid or not
+axes.grid:          True   # display grid or not
 #axes.grid.axis:     both    # which axis the grid should apply to
 #axes.grid.which:    major   # grid lines at {major, minor, both} ticks
 #axes.titlelocation: center  # alignment of the title: {left, right, center}
@@ -512,10 +512,10 @@ ytick.direction:      in     # direction: {in, out, inout}
 ## ***************************************************************************
 ## * GRIDS                                                                   *
 ## ***************************************************************************
-#grid.color:     "#b0b0b0"  # grid color
-#grid.linestyle: -          # solid
-#grid.linewidth: 0.8        # in points
-#grid.alpha:     1.0        # transparency, between 0.0 and 1.0
+grid.color:     "black"  # grid color
+grid.linestyle: :          # solid
+grid.linewidth: 0.75        # in points
+grid.alpha:     0.25        # transparency, between 0.0 and 1.0
 
 
 ## ***************************************************************************

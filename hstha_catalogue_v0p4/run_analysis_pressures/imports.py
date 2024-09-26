@@ -7,6 +7,18 @@ from scipy.optimize import curve_fit
 import pyneb as pn
 from matplotlib import colors
 
+import numpy as np
+from astropy import units as u 
+from astropy.io import fits
+import matplotlib.pyplot as plt
+import aplpy
+import colorcet
+import matplotlib as mpl
+import imageio.v3 as iio
+
+import warnings
+warnings.filterwarnings('ignore')   
+
 plt.style.use('paper.mplstyle')
 
 import warnings
