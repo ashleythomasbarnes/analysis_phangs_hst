@@ -25,6 +25,7 @@ import gc
 from scipy import ndimage
 from astropy.convolution import Gaussian2DKernel, convolve
 from astropy.table import Table
+import cv2 # Import OpenCV
 
 
 # import warnings

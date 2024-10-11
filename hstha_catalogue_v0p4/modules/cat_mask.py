@@ -29,6 +29,20 @@ def get_prunemask(mask, thresh=10):
     return(mask_out)
 
 
+def get_filled_outer_contour(mask):
+
+    im = np.array(mask*1, dtype=np.uint8)
+    # Run findContours - Note the RETR_EXTERNAL flag
+    # Also, we want to find the best contour possible with CHAIN_APPROX_NONE
+    contours, hierarchy = cv2.findContours(im, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+    # Create an output of all zeroes that has the same shape as the input
+    mask_filled = np.zeros_like(im)
+    # On this output, draw all of the contours that we have detected
+    cv2.drawContours(mask_filled, contours, -1, 255, thickness=cv2.FILLED)
+
+    return mask_filled != 0 
+
+
 def get_regions(ra, dec, height, ellipse=False, width=0, angle=0):
 
     center_sky = SkyCoord(ra, dec, unit='deg', frame='fk5')
