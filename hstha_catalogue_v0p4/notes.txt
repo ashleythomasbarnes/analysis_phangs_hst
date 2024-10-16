@@ -1,3 +1,10 @@
 jupyter nbconvert --inplace --execute run_cutouts*.ipynb
 jupyter nbconvert --inplace --execute run_catalouge*.ipynb
 jupyter nbconvert --inplace --execute run_cluster*.ipynb
+
+
+jupyter nbconvert --inplace --execute run_clusters_ngc4254.ipynb
+jupyter nbconvert --inplace --execute run_clusters_ngc4303.ipynb
+jupyter nbconvert --inplace --execute run_clusters_ngc4321.ipynb
+jupyter nbconvert --inplace --execute run_clusters_ngc5068.ipynb
+jupyter nbconvert --inplace --execute run_clusters_ngc7496.ipynb

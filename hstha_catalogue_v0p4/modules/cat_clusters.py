@@ -115,3 +115,113 @@ def get_clusters_all(cluster_table, hdus, props_all):
     props_all_cluster = join(props_all, cluster_table_masked_all, keys='region_ID')
     
     return props_all_cluster
+
+
+def get_padding(hdu_catalog_mask_, hdu_cluster_mask_):
+
+    # Get the shapes of the data arrays
+    catalog_shape = hdu_catalog_mask_.data.shape
+    cluster_shape = hdu_cluster_mask_.data.shape
+
+    # Calculate the difference in shape
+    rows_diff = cluster_shape[0] - catalog_shape[0]
+    cols_diff = cluster_shape[1] - catalog_shape[1]
+
+    # Create arrays of -1 to append
+    rows_to_append = -1 * np.ones((rows_diff, catalog_shape[1]))
+    cols_to_append = -1 * np.ones((cluster_shape[0], cols_diff))
+
+    # Append rows and columns to match the shape
+    hdu_catalog_mask_.data = np.vstack((hdu_catalog_mask_.data, rows_to_append))
+    hdu_catalog_mask_.data = np.hstack((hdu_catalog_mask_.data, cols_to_append))
+
+    print('[INFO] Padding added to catalog mask to match cluster mask shape... ')
+
+    return(hdu_catalog_mask_)
+
+
+def get_cluster_IDs(region_ID, i, hdus_catalog_mask_new, hdus_cluster_mask_new):
+
+    hdu_catalog_mask_ = hdus_catalog_mask_new[i] # Get the mask of the region Ha
+    hdu_cluster_mask_ = hdus_cluster_mask_new[i] # Get the mask of the region cluster 
+
+    # Check if the shapes of the masks are the same - if not, add padding to the catalog mask
+    # Was case for NGC2835s due to half map missing
+    if hdu_catalog_mask_.shape != hdu_cluster_mask_.shape:
+        hdu_catalog_mask_ = get_padding(hdu_catalog_mask_, hdu_cluster_mask_)
+
+    mask = hdu_catalog_mask_.data == region_ID
+
+    data_cluster_masked = hdu_cluster_mask_.data[mask]
+
+    cluster_IDs = np.unique(data_cluster_masked)
+    cluster_IDs = cluster_IDs[cluster_IDs != 0]
+
+    return cluster_IDs
+
+
+def get_no_clusters(region_ID, props_clusters):
+    
+    props_clusters_new = QTable(props_clusters[0], masked=True) # Make new table with same columns as props_clusters 
+    for colname in props_clusters_new.colnames: 
+        props_clusters_new[colname] = np.nan # Fill with nans
+    
+    props_clusters_new['reg_dolflux_Age_MinChiSq_ave'] = np.nan
+    props_clusters_new['reg_dolflux_Mass_MinChiSq_sum'] = np.nan
+
+    props_clusters_new.mask = np.ones(len(props_clusters_new.columns), dtype=bool) # Mask all values
+
+    props_clusters_new['no_clusters'] = True
+    props_clusters_new['one_clusters'] = False
+    props_clusters_new['multiple_clusters'] = False
+    props_clusters_new['region_ID'] = region_ID
+
+    return props_clusters_new
+
+
+def get_one_clusters(region_ID, props_clusters, cluster_IDs):
+
+    mask = props_clusters['reg_id'] == cluster_IDs[0]
+    props_clusters_new = props_clusters[mask]
+
+    props_clusters_new['reg_dolflux_Age_MinChiSq_ave'] = np.nan
+    props_clusters_new['reg_dolflux_Mass_MinChiSq_sum'] = np.nan
+
+    props_clusters_new['no_clusters'] = False
+    props_clusters_new['one_clusters'] = True
+    props_clusters_new['multiple_clusters'] = False
+    props_clusters_new['region_ID'] = region_ID
+
+    return props_clusters_new
+
+
+def get_multi_clusters(region_ID, props_clusters, cluster_IDs):
+
+    ages = []
+    masses = []
+    ages_ave = []
+    masses_sum = []
+
+    for cluster_ID in cluster_IDs: 
+        mask = props_clusters['reg_id'] == cluster_ID
+        ages += [props_clusters['reg_dolflux_Age_MinChiSq'][mask][0]]
+        masses += [props_clusters['reg_dolflux_Mass_MinChiSq'][mask][0]]
+
+    argmin = np.argmin(ages) # Get minimum age cluster
+    ages_ave = np.mean(ages) # Get mean mass of clusters
+    masses_sum = np.sum(masses) # Get sum of masses of clusters
+    ages_massweighted = np.sum(np.array(masses) * np.array(ages)) / np.sum(masses) # Calculate the mass-weighted age
+
+    mask = props_clusters['reg_id'] == cluster_IDs[argmin]
+    props_clusters_new = props_clusters[mask]
+
+    props_clusters_new['reg_dolflux_Age_MinChiSq_ave'] = ages_ave
+    props_clusters_new['reg_dolflux_Mass_MinChiSq_sum'] = masses_sum
+    props_clusters_new['reg_dolflux_Age_MinChiSq_massweighted'] = ages_massweighted
+
+    props_clusters_new['no_clusters'] = False
+    props_clusters_new['one_clusters'] = False
+    props_clusters_new['multiple_clusters'] = True
+    props_clusters_new['region_ID'] = region_ID
+
+    return props_clusters_new

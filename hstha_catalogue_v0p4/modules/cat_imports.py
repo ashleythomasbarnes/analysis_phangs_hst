@@ -24,7 +24,7 @@ from astropy.nddata import Cutout2D
 import gc
 from scipy import ndimage
 from astropy.convolution import Gaussian2DKernel, convolve
-from astropy.table import Table
+from astropy.table import QTable
 import cv2 # Import OpenCV
 
 
