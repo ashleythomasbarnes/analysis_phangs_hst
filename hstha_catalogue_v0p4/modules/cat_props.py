@@ -4,7 +4,7 @@ from cat_imports import *
 
 # Convert radius in arcsec to parsec
 def get_pcperarcsec(sample_table):
-    dist = sample_table['dist'].quantity[0]
+    dist = sample_table['dist'][0]
     pcperarcsec = dist.to('pc').value/206265
     return(pcperarcsec*au.pc/au.arcsec)
 
@@ -45,7 +45,7 @@ def func_reccoeff(temp):
 
 def get_ne(ha_lum, radius, temp):
 
-    volume = (4./3.)*np.pi*radius.quantity**3 #in units of cm^3
+    volume = (4./3.)*np.pi*radius**3 #in units of cm^3
     ha_lum = ha_lum.to('erg/s')
     volume = volume.to('cm^3')
     

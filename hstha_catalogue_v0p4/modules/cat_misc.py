@@ -42,7 +42,7 @@ def load_table(filename):
     """
     
     print(f'[INFO] [load_table] %s' %filename)
-    sampletable = Table.read(filename)
+    sampletable = QTable.read(filename)
     return(sampletable)
 
 
@@ -52,7 +52,7 @@ def get_galaxyprops(galaxy, sampletable_file):
     """
     
     print(f'[INFO] [get_galaxyprops] Getting sample table properties for {galaxy}...')
-    sampletable = Table.read(sampletable_file)
+    sampletable = QTable.read(sampletable_file)
     mask = sampletable['name'] == galaxy
     sampletable = sampletable[mask]
     return(sampletable)
@@ -63,7 +63,7 @@ def get_museprops(galaxy, muscat_file):
     """
 
     print(f'[INFO] [get_MuseProps] Getting MUSE catalouge properties for {galaxy}...')
-    muscat_table = Table.read(muscat_file)
+    muscat_table = QTable.read(muscat_file)
     muscat_table = muscat_table[muscat_table['gal_name'] == galaxy.swapcase()]
     return(muscat_table)
 
@@ -71,3 +71,21 @@ def checkmakedir(dir):
     if not os.path.exists(dir):
         os.makedirs(dir)
     return
+
+def get_unpack(file):
+    if os.path.isfile(file):
+        print('File found: %s' %file)
+    elif os.path.isfile(file+'.gz'): 
+        file_untar = file+'.gz'
+        print('Unpacking: %s' %file_untar)
+        os.system('gunzip --keep %s' %file_untar)
+    else: 
+        print('File not found: %s' %file)
+
+def clean_unpack(file): 
+    if os.path.isfile(file):
+        if file.endswith('-idmask.fits'):
+            print('Cleaning: %s' %file)
+            os.system('rm %s' %file)
+    else: 
+        print('File not found: %s' %file)

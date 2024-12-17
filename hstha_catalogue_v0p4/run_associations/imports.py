@@ -14,8 +14,9 @@ from astropy.table import QTable, join, vstack, Column
 from astrodendro import Dendrogram, pp_catalog
 from reproject import reproject_interp
 import matplotlib.pyplot as plt
+import os
 
 sys.path.append('./../')
-from modules import cat_misc, cat_props, cat_mask, cat_clusters, cat_cutouts
+from modules import cat_misc, cat_props, cat_mask, cat_associations, cat_cutouts
 
 warnings.filterwarnings('ignore')

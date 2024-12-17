@@ -7,6 +7,7 @@ from scipy.optimize import curve_fit
 import pyneb as pn
 from matplotlib import colors
 from scipy import stats
+from astropy.visualization import wcsaxes
 
 # import numpy as np
 # from astropy import units as u 
@@ -47,6 +48,6 @@ sys.path.append('../../../../misc/data_cube_analysis')
 from Sun_Plot_Tools.sun_plot_tools.ax import *
 
 sys.path.append('./../modules')
-import cat_props
+import cat_props, cat_misc
 
 from tools import *
