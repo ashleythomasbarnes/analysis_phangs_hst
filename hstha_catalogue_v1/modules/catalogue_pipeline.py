@@ -212,6 +212,10 @@ class PyHSTHACat:
         # Load the sample (galaxy) table & MUSE property table
         self.muscat_table = cat_misc.get_museprops(self.galaxy, self.muscat_table_file)
         self.sample_table = cat_misc.get_galaxyprops(self.galaxy, self.sample_table_file)
+        
+        # Remove HDUS to free up space
+        del hdus, hdus_converted
+        gc.collect()
 
     # -------------------------------------------------------------------------
     # C. GET REGIONS
@@ -248,10 +252,13 @@ class PyHSTHACat:
         else:
             # Generate cutouts and pickle them individually
             for hdu, name in zip([self.hstha_hdu, self.musha_hdu, self.muscat_hdu], names):
+                
                 print(f'[INFO] Generating cutouts for {name}...')
                 hdu_cutouts = cat_cutouts.get_croppeddata_all(hdu, self.regions)
                 pickle_path = f"{self.cutout_dir}/{name}.pickel"
                 cat_misc.save_pickle(hdu_cutouts, pickle_path)
+                
+                # Save space
                 del hdu_cutouts
                 gc.collect()
 
@@ -482,6 +489,10 @@ class PyHSTHACat:
 
             # Add this region's measurements
             props_all.append(props)
+
+        # Clean up memory
+        del data, header, dendro, metadata, props_dendro, dendro_IDs, hdu_data_masked, hdu_mask, mask_low, mask_low_prune, mask_high, mask_grow, mask_prune, mask_filled
+        gc.collect()
 
         # Combine all region properties into one table
         props_all = vstack(props_all)
