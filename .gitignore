@@ -3,3 +3,5 @@
 *.fits
 /hstha_catalogue_v0p0/old
 /hstha_catalogue_v0p1/old
+hstha_catalogue_v0p0/.DS_Store
+.DS_Store
