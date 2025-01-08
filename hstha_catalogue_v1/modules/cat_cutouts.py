@@ -103,15 +103,22 @@ def get_croppeddata(hdu, i, regions):
 
     try: 
         cutout = Cutout2D(hdu.data, regions['position'][i], [regions['width'][i], regions['height'][i]], wcs=wcs)  # Create a rectangular cutout
-        hdu_crop = fits.PrimaryHDU(cutout.data, cutout.wcs.to_header())
+        
+        if 0 in cutout.shape:
+            cutout = np.ones([2,2])*np.nan
+            hdu_crop = fits.PrimaryHDU(cutout.data, hdu.header)
+        else:
+            hdu_crop = fits.PrimaryHDU(cutout.data, cutout.wcs.to_header())
+
     except:
         # print('[INFO] [get_croppeddata] NoOverlapError: filling with nans for Region %i' %i)
-        cutout = np.ones([5,5])*np.nan
+        cutout = np.ones([2,2])*np.nan
         hdu_crop = fits.PrimaryHDU(cutout.data, hdu.header)
     
-    del hdu 
-    del cutout  # Delete the cutout to free up memory
-    _ = gc.collect()  # Perform garbage collection
+    # Very slow to delete the cutout and perform garbage collection... 
+    # del hdu 
+    # del cutout  # Delete the cutout to free up memory
+    # _ = gc.collect()  # Perform garbage collection
 
     return hdu_crop  # Return the cropped HDU object
 
@@ -132,7 +139,10 @@ def get_croppeddata_all(hdu, regions):
     hdus = []
     for i in tqdm(range(n), desc="Cropping regions"):
         hdus += [get_croppeddata(hdu, i, regions)]
-                        
+    
+    # Take out the garbage... 
+    gc.collect()
+
     return hdus 
 
 def get_croppeddata_all_parallel(hdu, regions, n_jobs=-1):

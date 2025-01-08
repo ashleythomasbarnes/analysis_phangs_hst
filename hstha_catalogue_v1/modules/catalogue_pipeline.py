@@ -76,6 +76,7 @@ class PyHSTHACat:
         # MUSE sample table & the main galaxy properties table
         self.sample_table_file = f"{self.rootdir}/data_misc/sample_table/phangs_sample_table_v1p6.fits"
         self.muscat_table_file = f"{self.rootdir}/data_misc/Nebulae_catalogue_v3/Nebulae_catalogue_v3.fits"
+        # self.muscat_table_file = f"{self.rootdir}/data_misc/Nebulae_catalogue_v4/Nebulae_catalogue_v4.fits"
 
         # ---------------------------------------------------------------------
         # 6. PLACEHOLDERS FOR LOADED HDUs, TABLES, FINAL PROPERTIES
@@ -170,7 +171,8 @@ class PyHSTHACat:
 
         # Remove and recreate root directory if rerun_all is set
         if self.rerun_all:
-            os.system(f'rm -rf {root_dir}')
+            os.system(f'rm -rf {self.cutout_dir}')
+            os.system(f'rm -rf {self.catalogue_dir}')
 
         # Create root directory if it doesn't exist
         if not os.path.isdir(root_dir):
@@ -258,7 +260,7 @@ class PyHSTHACat:
                 pickle_path = f"{self.cutout_dir}/{name}.pickel"
                 cat_misc.save_pickle(hdu_cutouts, pickle_path)
                 
-                # Save space
+                # Save some memory by deleting the cutout HDUs and taking out the garbage... 
                 del hdu_cutouts
                 gc.collect()
 
