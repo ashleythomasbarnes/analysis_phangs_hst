@@ -108,10 +108,12 @@ def get_hdumask(hdu_ha, hdu_mask, outputfile='tmp.fits'):
     # Write the resulting mask to an output file
     hdu_ha.writeto(outputfile, overwrite=True)
 
+    return hdu_ha
+
 
 def get_hducomplex(props_all_final, inputfile, outputfile):
     hdu = fits.open(inputfile)[0]
-    for region_ID, complexity_score in tqdm(props_all_final['region_ID', 'complexity_score']):
+    for region_ID, complexity_score in tqdm(props_all_final['region_ID', 'complexity_score'], desc='Geting complexity score'):
         hdu.data[hdu.data==region_ID] = complexity_score
     hdu.writeto(outputfile, overwrite=True)
 

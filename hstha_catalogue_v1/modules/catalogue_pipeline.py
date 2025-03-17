@@ -17,12 +17,14 @@ class PyHSTHACat:
         self.rootdir = '/Users/abarnes/Dropbox/work/Smallprojects/galaxies'
 
         # ---------------------------------------------------------------------
-        # 2. HST/MUSE DATA FILES
+        # 2. HST/MUSE DATA FILES AND DATA
         # ---------------------------------------------------------------------
         self.hstha_file = (
             f"{self.rootdir}/data_hstha/{self.galaxy_hst}/hst_contsub/"
             f"{self.galaxy_hst}_hst_ha.fits"
         )
+        # Will not use error map for noise - using map stats instead... 
+        self.use_errormap_for_noise = False
         self.hstha_err_file = (
             f"{self.rootdir}/data_hstha/{self.galaxy_hst}/hst_contsub/"
             f"{self.galaxy_hst}_hst_ha_err.fits"
@@ -42,7 +44,6 @@ class PyHSTHACat:
         # ---------------------------------------------------------------------
         # 3. OUTPUT DIRECTORIES FOR CUTOUTS, CATALOG, HDUs
         # ---------------------------------------------------------------------
-
         self.output_dir_append = output_dir_append
 
         self.cutout_dir = (
@@ -51,9 +52,6 @@ class PyHSTHACat:
         self.catalogue_dir = (
             f"{self.rootdir}/data_hstha_nebulae_catalogue/{self.galaxy_hst}/catalogue{self.output_dir_append}"
         )
-        # self.cutouts_hdus_dir = (
-        #     f"{self.rootdir}/data_hstha_nebulae_catalogue/{self.galaxy_hst}/cutouts_hdus{self.output_dir_append}"
-        # )
 
         # ---------------------------------------------------------------------
         # 4. RERUN FLAGS
@@ -215,6 +213,39 @@ class PyHSTHACat:
         self.muscat_table = cat_misc.get_museprops(self.galaxy, self.muscat_table_file)
         self.sample_table = cat_misc.get_galaxyprops(self.galaxy, self.sample_table_file)
         
+        # Get properties for the regions
+
+        # Define the pixel scale per PSF for pruning masks
+        if 'BMAJ' in self.hstha_hdu.header: 
+            
+            self.psf = (self.hstha_hdu.header['BMAJ'] *au.deg).to(au.arcsec)
+            print(f'[INFO] Using PSF size from header -- > {self.psf:.2f}')
+        else:
+            print('[INFO] Using default PSF size of 0.07 arcsec...')
+            self.psf = 0.07 * au.arcsec
+
+        self.pix = 0.04 * au.arcsec
+        self.pix_per_psf = int(np.round(self.psf/self.pix))**2 #for smoothed data
+
+        # Get pixel scale from header
+        if 'CDELT1' in  self.hstha_hdu.header and 'CDELT2' in  self.hstha_hdu.header:
+            self.pix = np.array([abs( self.hstha_hdu.header['CDELT1']), abs(self.hstha_hdu.header['CDELT2'])]).mean() * au.degree
+        else:
+            self.pix = 1
+
+        # fallback if these are placeholders
+        if self.pix.value == 1:
+            if 'CD1_1' in  self.hstha_hdu.header and 'CD2_2' in  self.hstha_hdu.header:
+                self.pix = np.array([abs(self.hstha_hdu.header['CD1_1']), abs(self.hstha_hdu.header['CD2_2'])]).mean() * au.degree
+                print('[INFO] Pixel scale taken as CD1_1, CD2_2')
+            elif 'PC1_1' in  self.hstha_hdu.header and 'PC2_2' in  self.hstha_hdu.header:
+                self.pix = np.array([abs(self.hstha_hdu.header['PC1_1']), abs(self.hstha_hdu.header['PC2_2'])]).mean() * au.degree
+                print('[INFO] Pixel scale taken as PC1_1, PC2_2')
+        else:
+            print('[INFO] Pixel scale taken as CDELT1, CDELT2')
+        self.pix = self.pix.to('arcsec')
+        print(f'[INFO] Pixel scale -- > {self.pix:.2f}')
+
         # Remove HDUS to free up space
         del hdus, hdus_converted
         gc.collect()
@@ -293,8 +324,17 @@ class PyHSTHACat:
         cat_misc.checkmakedir(self.catalogue_dir)
 
         # Get the median noise from the HST H-alpha error map if not done before
+        # If use_errormap_for_noise is False, use the MAD of the H-alpha map
         if self.hstha_err is None:
-            self.hstha_err = np.nanmedian(self.hstha_err_hdu.data)
+            if self.use_errormap_for_noise:
+                print('[INFO] Using error map for noise calculation...')
+                self.hstha_err = np.nanmedian(self.hstha_err_hdu.data)
+                print('[INFO] Noise level:', self.hstha_err)
+            else: 
+                print('[INFO] Using MAD of H-alpha map for noise calculation...')
+                self.hstha_err = stats.mad_std(self.hstha_hdu.data, ignore_nan=True)
+                self.hstha_err = stats.mad_std(self.hstha_hdu.data[self.hstha_hdu.data < self.hstha_err*5], ignore_nan=True)
+                print('[INFO] Noise level:', self.hstha_err)
 
         # Decide whether to load or create masked HDUs
         hdus_file = f'{self.cutout_dir}/hdus_all_withmasked.pickel'
@@ -312,19 +352,20 @@ class PyHSTHACat:
         hdus_data_masked= []
 
         # Loop over each region in the MUSE table
-        for i in tqdm(range(len(muscat_regionIDs)), desc='Get sources:', position=0):
+        for i in tqdm(range(len(muscat_regionIDs)), desc='Get sources', position=0):
+            
             regionID = np.int16(muscat_regionIDs[i])
             
             data   = hdus['hstha_hdu_masked'][i].data.copy()
             header = hdus['hstha_hdu_masked'][i].header.copy()
 
             # 1) Create threshold-based masks
-            mask_low       = cat_mask.get_threshmask(data, self.hstha_err, thresh=1)
-            mask_low_prune = cat_mask.get_prunemask(mask_low, thresh=50)
-            mask_high      = cat_mask.get_threshmask(data, self.hstha_err, thresh=3)
-            mask_grow      = ndimage.binary_dilation(mask_high, iterations=-1, mask=mask_low_prune)
-            mask_prune     = cat_mask.get_prunemask(mask_grow, thresh=9)
-            mask_filled    = cat_mask.get_filled_outer_contour(mask_prune)
+            mask_low       = cat_mask.get_threshmask(data, self.hstha_err, thresh=2)
+            mask_low_prune = cat_mask.get_prunemask(mask_low, thresh=self.pix_per_psf*3)
+            mask_high      = cat_mask.get_threshmask(data, self.hstha_err, thresh=5)
+            mask_high_prune  = cat_mask.get_prunemask(mask_high, thresh=self.pix_per_psf)
+            mask_grow      = ndimage.binary_dilation(mask_high_prune, iterations=-1, mask=mask_low_prune)
+            mask_filled    = cat_mask.get_filled_outer_contour(mask_grow)
             mask_final     = mask_filled.copy()
 
             # 2) Save the mask
@@ -348,21 +389,7 @@ class PyHSTHACat:
                 continue
 
             # 5) Determine pixel scale
-            if 'CDELT1' in header and 'CDELT2' in header:
-                pixsize = np.array([abs(header['CDELT1']), abs(header['CDELT2'])]).mean() * au.degree
-            else:
-                pixsize = 1
-
-            # fallback if these are placeholders
-            if pixsize.value == 1:
-                if 'CD1_1' in header and 'CD2_2' in header:
-                    pixsize = np.array([abs(header['CD1_1']), abs(header['CD2_2'])]).mean() * au.degree
-                    # print('[INFO] Pixel scale taken as CD1_1, CD2_2')
-                elif 'PC1_1' in header and 'PC2_2' in header:
-                    pixsize = np.array([abs(header['PC1_1']), abs(header['PC2_2'])]).mean() * au.degree
-                    # print('[INFO] Pixel scale taken as PC1_1, PC2_2')
-            # else: 
-            #     print('[INFO] Pixel scale taken as CDELT')
+            pixsize = self.pix
 
             # 6) Basic region properties (flux, area, etc.)
             npix      = np.nansum(mask_final) * au.pix
@@ -463,9 +490,9 @@ class PyHSTHACat:
             # 9) Dendrogram complexity with higher thresholds
             dendro = Dendrogram.compute(
                 data_masked,
-                min_delta=(self.hstha_err*3),
-                min_value=(self.hstha_err),
-                min_npix=9,
+                min_delta=(self.hstha_err*5),
+                min_value=(self.hstha_err*2),
+                min_npix=self.pix_per_psf,
                 wcs=wcs
             )
             dendro_IDs = np.unique(dendro.index_map.data)
@@ -482,18 +509,16 @@ class PyHSTHACat:
             props['complexity_std'] = complexity_std
 
             # 10) Edge & Touch flags
+            # This flag will catch also nan values within the mask - i.e. maybe producing missing flux... 
             flag_edge = np.isnan(hdus['hstha_hdu_masked_ones'][i].data).any()*1
             props.add_column(Column(flag_edge, name='flag_edge_hst'))
-
-            mask_touch = (ndimage.binary_dilation(mask_final) & ~mask_final)
-            flag_touch = (np.nansum(np.isnan(data[mask_touch])) > 0)*1
-            props.add_column(Column(flag_touch, name='flag_touch_hst'))
 
             # Add this region's measurements
             props_all.append(props)
 
         # Clean up memory
-        del data, header, dendro, metadata, props_dendro, dendro_IDs, hdu_data_masked, hdu_mask, mask_low, mask_low_prune, mask_high, mask_grow, mask_prune, mask_filled
+        del data, header, dendro, metadata, props_dendro, dendro_IDs, 
+        del hdu_data_masked, hdu_mask, mask_low, mask_low_prune, mask_high, mask_grow, mask_high_prune, mask_filled
         gc.collect()
 
         # Combine all region properties into one table
@@ -535,13 +560,9 @@ class PyHSTHACat:
         # Store final catalog in memory & on disk
         self.props = props_all_final
 
-        props_file = f'{self.catalogue_dir}/props_all.fits'
-        self.props.write(props_file, overwrite=True)
-        print(f'[CATALOGUE] Final properties table saved to: {props_file}')
-
         # Save masks
         mask_file = f'{self.catalogue_dir}/{self.galaxy}_mask.fits'
-        cat_mask.get_hdumask(self.hstha_hdu, hdus_mask_id, outputfile=mask_file)
+        hdu_mask = cat_mask.get_hdumask(self.hstha_hdu, hdus_mask_id, outputfile=mask_file)
 
         complexity_file = f'{self.catalogue_dir}/{self.galaxy}_complexity.fits'
         cat_mask.get_hducomplex(self.props, inputfile=mask_file, outputfile=complexity_file)
@@ -549,8 +570,39 @@ class PyHSTHACat:
         regions_out = f'{self.catalogue_dir}/{self.galaxy}_mask'
         cat_mask.get_ds9regions(props_all, outputfile=regions_out)
 
-        print(f'[CATALOGUE] Masks saved to {mask_file} and {complexity_file}...')
-        print(f'[CATALOGUE] DS9 regions output to {regions_out}...')
+        # # Get mask touching between regions 
+        region_IDs = self.props['region_ID']
+
+        def get_flag_touch(hdu_mask, hdus, region_IDs):
+
+            flag_touch = []
+
+            for region_ID in tqdm(region_IDs, desc='Get touch flags:', position=0): 
+
+                region_ID = int(region_ID)
+                data_mask, _ = reproject_interp(hdu_mask, hdus['hstha_hdu'][region_ID].header, order='nearest-neighbor') 
+
+                data_mask_region = data_mask == region_ID
+                data_mask_region_inv = (data_mask != region_ID) & (data_mask != -1)
+
+                data_mask_region = data_mask_region.astype(int)
+                data_mask_region_inv = data_mask_region_inv.astype(int)
+
+                mask_touch = (binary_dilation(data_mask_region) & data_mask_region_inv)
+                flag_touch.append((np.sum(mask_touch)>0)*1)
+
+            return flag_touch
+        
+        flag_touch = get_flag_touch(hdu_mask, hdus, region_IDs)
+        self.props.add_column(Column(flag_touch, name='flag_touch_hst'))
+
+        # Save the final properties table
+        props_file = f'{self.catalogue_dir}/props_all.fits'
+        self.props.write(props_file, overwrite=True)
+        print(f'[CATALOGUE] Final properties table saved to: {props_file}')
+
+        print(f'[CATALOGUE] Masks saved to {mask_file} and {complexity_file}')
+        print(f'[CATALOGUE] DS9 regions output to {regions_out}')
         print('[CATALOGUE] Done!')
 
     # -------------------------------------------------------------------------
