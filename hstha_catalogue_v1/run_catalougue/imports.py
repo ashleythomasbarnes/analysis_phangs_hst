@@ -9,6 +9,7 @@ from tqdm import tqdm
 import gc
 from astropy import stats
 import astropy.units as au
+import astropy.constants as const
 from astropy.io import fits
 from astropy.wcs import WCS
 from astropy.table import QTable, join, vstack, Column

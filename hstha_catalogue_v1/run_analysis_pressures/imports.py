@@ -20,6 +20,8 @@ import warnings
 warnings.filterwarnings('ignore')   
 
 plt.style.use('paper.mplstyle')
+mpl.rcParams['xtick.minor.visible'] = True
+mpl.rcParams['ytick.minor.visible'] = True
 
 import warnings
 warnings.filterwarnings('ignore')
@@ -27,10 +29,15 @@ warnings.filterwarnings('ignore')
 # sys.path.append('../run_catalogue/')
 # from imports import *  
 
+# import sys 
+# sys.path.append('../../../../misc/data_cube_analysis')  
+# from bindata import * 
+# from histograms import *
+
+# sys.path.append('../../../../misc/data_cube_analysis') 
+# from Sun_Plot_Tools.sun_plot_tools.ax import *
+
 import sys 
-sys.path.append('../../../../misc/data_cube_analysis')  
+sys.path.append('/Users/abarnes/Library/CloudStorage/Dropbox/GitHub/GeneralTools/')  
 from bindata import * 
 from histograms import *
-
-sys.path.append('../../../../misc/data_cube_analysis') 
-from Sun_Plot_Tools.sun_plot_tools.ax import *
